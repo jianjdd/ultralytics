@@ -108,6 +108,20 @@ def onnx2saved_model(
 
         onnx.helper.float32_to_bfloat16 = float32_to_bfloat16
 
+    import importlib
+    import inspect
+    import pathlib
+
+    import onnx2tf.ops.TopK as _t
+
+    _path = pathlib.Path(inspect.getfile(_t))
+    _path.write_text(
+        _path.read_text().replace(
+            "k_tensor = int(k_tensor)",
+            "k_tensor = int(k_tensor.squeeze()) if hasattr(k_tensor, 'squeeze') else int(k_tensor)",
+        )
+    )
+    importlib.reload(_t)
     import onnx2tf  # scoped for after ONNX export for reduced conflict during import
 
     LOGGER.info(f"{prefix} starting TFLite export with onnx2tf {onnx2tf.__version__}...")
@@ -200,6 +214,20 @@ def pb2tfjs(pb_file: str, output_dir: str, half: bool = False, int8: bool = Fals
 
     import tensorflow as tf
     import tensorflowjs as tfjs
+    import inspect
+    import pathlib
+    import tensorflowjs.read_weights as _rw
+
+    _path = pathlib.Path(inspect.getfile(_rw))
+    _path.write_text(
+        _path.read_text()
+        .replace("np.object", "object")
+        .replace("np.bool", "bool")
+        .replace("np.int", "int")
+        .replace("np.float", "float")
+        .replace("np.complex", "complex")
+        .replace("np.str", "str")
+    )
 
     LOGGER.info(f"\n{prefix} starting export with tensorflowjs {tfjs.__version__}...")
 
