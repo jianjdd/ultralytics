@@ -107,7 +107,7 @@ from ultralytics.utils import (
 )
 from ultralytics.utils.checks import (
     IS_PYTHON_3_10,
-    IS_PYTHON_3_13,
+    IS_PYTHON_MINIMUM_3_13,
     IS_PYTHON_MINIMUM_3_9,
     check_apt_requirements,
     check_executorch_requirements,
@@ -920,18 +920,18 @@ class Exporter:
         try:
             import tensorflow as tf
         except ImportError:
-            if not IS_PYTHON_3_13:
+            if not IS_PYTHON_MINIMUM_3_13:
                 check_requirements("tensorflow>=2.0.0,<=2.19.0")
             else:
                 check_requirements("tensorflow>2.19.0")
             import tensorflow as tf
         check_requirements(
-            f"onnx2tf{'>=2.3.0,<2.3.16' if IS_PYTHON_3_13 else '>=1.26.3,<1.29.0'}",  # pin to avoid h5py build issues on aarch64
+            f"onnx2tf{'>=2.3.0,<2.3.16' if IS_PYTHON_MINIMUM_3_13 else '>=1.26.3,<1.29.0'}",  # pin to avoid h5py build issues on aarch64
             cmds="--no-deps",
         )
         check_requirements(
             (
-                f"tf_keras{'>2.19.0' if IS_PYTHON_3_13 else '<=2.19.0'}",
+                f"tf_keras{'>2.19.0' if IS_PYTHON_MINIMUM_3_13 else '<=2.19.0'}",
                 "sng4onnx>=1.0.1",  # required by 'onnx2tf' package
                 "onnx_graphsurgeon>=0.3.26",  # required by 'onnx2tf' package
                 "ai-edge-litert>=1.2.0" + (",<1.4.0" if MACOS else ""),  # required by 'onnx2tf' package
