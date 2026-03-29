@@ -234,7 +234,7 @@ class BOTSORT(BYTETracker):
 
 
 class ReID:
-    """YOLO model as encoder for re-identification."""
+    """YOLO model as encoder for re-identification. Supports both classification-based and ReID-task models."""
 
     def __init__(self, model: str):
         """Initialize encoder for re-identification.
@@ -245,13 +245,17 @@ class ReID:
         from ultralytics import YOLO
 
         self.model = YOLO(model)
-        self.model(embed=[len(self.model.model.model) - 2 if ".pt" in model else -1], verbose=False, save=False)  # init
+        self.is_reid_task = self.model.task == "reid"
+        if not self.is_reid_task:
+            self.model(embed=[len(self.model.model.model) - 2 if ".pt" in model else -1], verbose=False, save=False)
 
     def __call__(self, img: np.ndarray, dets: np.ndarray) -> list[np.ndarray]:
         """Extract embeddings for detected objects."""
-        feats = self.model.predictor(
-            [save_one_box(det, img, save=False) for det in xywh2xyxy(torch.from_numpy(dets[:, :4]))]
-        )
+        crops = [save_one_box(det, img, save=False) for det in xywh2xyxy(torch.from_numpy(dets[:, :4]))]
+        if self.is_reid_task:
+            results = self.model(crops, verbose=False)
+            return [r.probs.data.cpu().numpy() for r in results]
+        feats = self.model.predictor(crops)
         if len(feats) != dets.shape[0] and feats[0].shape[0] == dets.shape[0]:
             feats = feats[0]  # batched prediction with non-PyTorch backend
         return [f.cpu().numpy() for f in feats]
