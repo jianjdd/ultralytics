@@ -483,18 +483,6 @@ class ConfusionMatrix(DataExportMixin):
         """Return the confusion matrix."""
         return self.matrix
 
-    def tp_fp(self) -> tuple[np.ndarray, np.ndarray]:
-        """Return true positives and false positives.
-
-        Returns:
-            tp (np.ndarray): True positives.
-            fp (np.ndarray): False positives.
-        """
-        tp = self.matrix.diagonal()  # true positives
-        fp = self.matrix.sum(1) - tp  # false positives
-        # fn = self.matrix.sum(0) - tp  # false negatives (missed detections)
-        return (tp, fp) if self.task == "classify" else (tp[:-1], fp[:-1])  # remove background class if task=detect
-
     def plot_matches(self, img: torch.Tensor, im_file: str, save_dir: Path) -> None:
         """Plot grid of GT, TP, FP, FN for each image.
 
