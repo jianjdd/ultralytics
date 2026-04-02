@@ -966,9 +966,18 @@ class v8ClassificationLoss:
 class ReIDLoss:
     """Criterion class for computing ReID training losses (cross-entropy + batch-hard triplet + center)."""
 
-    def __init__(self, nc: int, triplet_margin: float = 0.3, label_smooth: float = 0.1,
-                 triplet_weight: float = 1.0, ce_weight: float = 1.0, center_weight: float = 0.0,
-                 center_momentum: float = 0.9, focal_gamma: float = 0.0, supcon_temp: float = 0.0):
+    def __init__(
+        self,
+        nc: int,
+        triplet_margin: float = 0.3,
+        label_smooth: float = 0.1,
+        triplet_weight: float = 1.0,
+        ce_weight: float = 1.0,
+        center_weight: float = 0.0,
+        center_momentum: float = 0.9,
+        focal_gamma: float = 0.0,
+        supcon_temp: float = 0.0,
+    ):
         """Initialize ReID loss with label-smoothed CE, batch-hard triplet, and center loss.
 
         Args:
@@ -1060,8 +1069,7 @@ class ReIDLoss:
                 mask = labels == cls_id
                 cls_feat = features[mask].mean(0)
                 self.centers[cls_id] = (
-                    self.center_momentum * self.centers[cls_id]
-                    + (1 - self.center_momentum) * cls_feat
+                    self.center_momentum * self.centers[cls_id] + (1 - self.center_momentum) * cls_feat
                 )
 
         # Compute center loss: 0.5 * mean(||f - c_y||^2)
