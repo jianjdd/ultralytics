@@ -151,21 +151,24 @@ class DetectionTrainer(BaseTrainer):
     def set_class_weights(self):
         """Compute and set class weights for handling class imbalance.
 
-        Class weights are computed based on inverse class frequency in the training dataset.
-        This helps the model pay more attention to underrepresented classes during training.
+        Class weights are computed based on inverse class frequency in the training dataset,
+        raised to the power of cls_pw (0 < cls_pw <= 1 dampens, cls_pw > 1 amplifies).
+        Final weights are normalized so their mean equals 1.0.
         """
         cls_pw = getattr(self.args, "cls_pw", 0.0)
         if cls_pw > 0:
             classes = np.concatenate([lb["cls"].flatten() for lb in self.train_loader.dataset.labels], 0)
             class_counts = np.bincount(classes.astype(int), minlength=self.data["nc"]).astype(float)
-            class_counts = np.where(class_counts == 0, 1e-6, class_counts)
 
-            weights = 1.0 / class_counts
+            # Warn about unseen classes and clamp to avoid extreme weights
+            missing = np.where(class_counts == 0)[0]
+            if len(missing):
+                LOGGER.warning(f"Classes {missing.tolist()} have 0 samples; their weights will be set to 1.0")
+            class_counts[missing] = 1.0
+
+            weights = (1.0 / class_counts) ** cls_pw  # apply power directly
             weights = weights / weights.mean()  # normalize so mean equals 1.0
-            if cls_pw != 1.0:
-                weights = weights**cls_pw
-            weights = weights / weights.sum()  # renormalize
-            self.model.class_weights = torch.from_numpy(weights).to(self.device) * self.data["nc"]
+            self.model.class_weights = torch.from_numpy(weights).to(self.device)
             LOGGER.info(f"Class weights: {self.model.class_weights.cpu().numpy().round(3)}")
         else:
             self.model.class_weights = None
