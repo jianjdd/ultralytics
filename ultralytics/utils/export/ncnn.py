@@ -55,7 +55,7 @@ def torch2ncnn(
         pnnxonnx=(output_dir / "model.pnnx.onnx").as_posix(),
     )
 
-    output_dir.mkdir(exist_ok=True)  # make ncnn_model directory
+    output_dir.mkdir(parents=True, exist_ok=True)  # make ncnn_model directory
     device_type = device.type if device is not None else "cpu"
     pnnx.export(model, inputs=im, **ncnn_args, **pnnx_args, fp16=half, device=device_type)
 
