@@ -33,6 +33,7 @@ def torch2torchscript(
     """
     LOGGER.info(f"\n{prefix} starting export with torch {TORCH_VERSION}...")
 
+    output_file = str(output_file)
     ts = torch.jit.trace(model, im, strict=False)
     extra_files = {"config.txt": json.dumps(metadata or {})}  # torch._C.ExtraFilesMap()
     if optimize:  # https://pytorch.org/tutorials/recipes/mobile_interpreter.html
@@ -42,4 +43,4 @@ def torch2torchscript(
         optimize_for_mobile(ts)._save_for_lite_interpreter(output_file, _extra_files=extra_files)
     else:
         ts.save(output_file, _extra_files=extra_files)
-    return str(output_file)
+    return output_file
