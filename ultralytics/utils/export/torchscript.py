@@ -44,4 +44,4 @@ def torch2torchscript(
         optimize_for_mobile(ts)._save_for_lite_interpreter(file, _extra_files=extra_files)
     else:
         ts.save(file, _extra_files=extra_files)
-    return file
+    return str(file)
