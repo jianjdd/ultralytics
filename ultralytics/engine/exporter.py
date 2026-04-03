@@ -1016,9 +1016,10 @@ class Exporter:
 
         from ultralytics.utils.export.axelera import torch2axelera
 
+        output_dir = Path(f"{self.file.stem}_axelera_model")
         return torch2axelera(
             model=self.model,
-            file=self.file,
+            output_dir=output_dir,
             calibration_dataset=self.get_int8_calibration_dataloader(prefix),
             transform_fn=self._transform_fn,
             metadata=self.metadata,
