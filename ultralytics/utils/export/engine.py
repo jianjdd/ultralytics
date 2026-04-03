@@ -51,7 +51,7 @@ def torch2onnx(
     input_names: list[str] = ["images"],
     output_names: list[str] = ["output0"],
     dynamic: dict | None = None,
-) -> None:
+) -> str:
     """Export a PyTorch model to ONNX format.
 
     Args:
@@ -62,6 +62,9 @@ def torch2onnx(
         input_names (list[str]): List of input tensor names.
         output_names (list[str]): List of output tensor names.
         dynamic (dict | None): Dictionary specifying dynamic axes for inputs and outputs.
+
+    Returns:
+        (str): Path to the exported ONNX file.
 
     Notes:
         Setting `do_constant_folding=True` may cause issues with DNN inference for torch>=1.12.
@@ -79,6 +82,7 @@ def torch2onnx(
         dynamic_axes=dynamic,
         **kwargs,
     )
+    return str(output_file)
 
 
 def onnx2engine(
@@ -94,7 +98,7 @@ def onnx2engine(
     metadata: dict | None = None,
     verbose: bool = False,
     prefix: str = "",
-) -> None:
+) -> str:
     """Export a YOLO model to TensorRT engine format.
 
     Args:
@@ -110,6 +114,9 @@ def onnx2engine(
         metadata (dict | None): Metadata to include in the engine file.
         verbose (bool, optional): Enable verbose logging.
         prefix (str, optional): Prefix for log messages.
+
+    Returns:
+        (str): Path to the exported engine file.
 
     Raises:
         ValueError: If DLA is enabled on non-Jetson devices or required precision is not set.
@@ -276,3 +283,4 @@ def onnx2engine(
                 t.write(len(meta).to_bytes(4, byteorder="little", signed=True))
                 t.write(meta.encode())
             t.write(engine.serialize())
+    return str(output_file)
