@@ -309,6 +309,7 @@ def torch2imx(
             task=model.task,
         )
 
+    file = Path(file)
     f = Path(str(file).replace(file.suffix, "_imx_model"))
     f.mkdir(exist_ok=True)
     onnx_model = f / Path(str(file.name).replace(file.suffix, "_imx.onnx"))  # js dir
