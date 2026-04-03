@@ -1097,7 +1097,13 @@ class Exporter:
 
         self.args.opset = min(self.args.opset or 19, 19)  # rknn-toolkit expects opset<=19
         f_onnx = self.export_onnx()
-        return onnx2rknn(f_onnx, name=self.args.name, metadata=self.metadata, prefix=prefix)
+        return onnx2rknn(
+            onnx_file=f_onnx,
+            output_dir=str(self.file).replace(self.file.suffix, f"_rknn_model{os.sep}"),
+            name=self.args.name,
+            metadata=self.metadata,
+            prefix=prefix,
+        )
 
     @try_export
     def export_imx(self, prefix=colorstr("IMX:")):
