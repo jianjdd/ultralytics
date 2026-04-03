@@ -195,7 +195,7 @@ class OCSORT(BYTETracker):
 
     def get_dists(self, tracks, detections):
         """Compute cost matrix with Buffered IoU distance and OCM velocity direction consistency cost."""
-        dists = matching.iou_distance(tracks, detections)  # test: pure IoU without BIoU
+        dists = self._biou_distance(tracks, detections)
         if self.args.fuse_score:
             dists = matching.fuse_score(dists, detections)
 

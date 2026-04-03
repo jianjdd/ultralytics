@@ -172,7 +172,7 @@ class DeepOCSORT(OCSORT):
 
         Uses min(BIoU_cost, appearance_cost) with proximity gating, plus OCM velocity cost.
         """
-        iou_dists = matching.iou_distance(tracks, detections)  # test: pure IoU
+        iou_dists = self._biou_distance(tracks, detections)
         dists_mask = iou_dists > (1 - self.proximity_thresh)
 
         if self.args.fuse_score:
