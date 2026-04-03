@@ -1127,11 +1127,11 @@ class Exporter:
                 check_apt_requirements(["openjdk-17-jre"])
 
         return torch2imx(
-            self.model,
-            self.file,
-            self.args.conf,
-            self.args.iou,
-            self.args.max_det,
+            model=self.model,
+            output_dir=str(self.file).replace(self.file.suffix, "_imx_model/"),
+            conf=self.args.conf,
+            iou=self.args.iou,
+            max_det=self.args.max_det,
             metadata=self.metadata,
             dataset=self.get_int8_calibration_dataloader(prefix),
             prefix=prefix,
