@@ -44,7 +44,7 @@ def best_onnx_opset(onnx: types.ModuleType, cuda: bool = False) -> int:
 
 @ThreadingLocked()
 def torch2onnx(
-    torch_model: torch.nn.Module,
+    model: torch.nn.Module,
     im: torch.Tensor | list[torch.Tensor] | tuple[torch.Tensor],
     onnx_file: str,
     opset: int = 14,
@@ -55,7 +55,7 @@ def torch2onnx(
     """Export a PyTorch model to ONNX format.
 
     Args:
-        torch_model (torch.nn.Module): The PyTorch model to export.
+        model (torch.nn.Module): The PyTorch model to export.
         im (torch.Tensor | list[torch.Tensor] | tuple[torch.Tensor]): Example input tensor(s) for tracing.
         onnx_file (str): Path to save the exported ONNX file.
         opset (int): ONNX opset version to use for export.
@@ -68,7 +68,7 @@ def torch2onnx(
     """
     kwargs = {"dynamo": False} if TORCH_2_4 else {}
     torch.onnx.export(
-        torch_model,
+        model,
         im,
         onnx_file,
         verbose=False,
