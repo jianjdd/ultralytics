@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +13,7 @@ from ultralytics.utils import LOGGER
 def torch2openvino(
     model: torch.nn.Module,
     im: torch.Tensor | list[torch.Tensor] | tuple[torch.Tensor],
-    file: Path | str | None = None,
+    output_dir: Path | str | None = None,
     dynamic: bool = False,
     half: bool = False,
     int8: bool = False,
@@ -27,7 +26,7 @@ def torch2openvino(
     Args:
         model (torch.nn.Module): The model to export (may be NMS-wrapped).
         im (torch.Tensor | list[torch.Tensor] | tuple[torch.Tensor]): Example input tensor(s) for tracing.
-        file (Path | str | None): Source model path used to derive output directory.
+        output_dir (Path | str | None): Directory to save the exported OpenVINO model.
         dynamic (bool): Whether to use dynamic input shapes.
         half (bool): Whether to compress to FP16.
         int8 (bool): Whether to apply INT8 quantization.
@@ -42,7 +41,7 @@ def torch2openvino(
 
     LOGGER.info(f"\n{prefix} starting export with openvino {ov.__version__}...")
 
-    input_shape = [i.shape for i in im] if isinstance(im, (list, tuple)) else [im.shape]
+    input_shape = [i.shape for i in im] if isinstance(im, (list, tuple)) else im.shape
     ov_model = ov.convert_model(model, input=None if dynamic else input_shape, example_input=im)
     if int8:
         import nncf
@@ -54,10 +53,9 @@ def torch2openvino(
             ignored_scope=ignored_scope,
         )
 
-    if file is not None:
-        file = Path(file)
-        suffix = f"_{'int8_' if int8 else ''}openvino_model{os.sep}"
-        f = str(file).replace(file.suffix, suffix)
-        f_ov = str(Path(f) / file.with_suffix(".xml").name)
-        ov.save_model(ov_model, f_ov, compress_to_fp16=half)
+    if output_dir is not None:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = output_dir / "model.xml"
+        ov.save_model(ov_model, output_file, compress_to_fp16=half)
     return ov_model
