@@ -70,6 +70,7 @@ Validate a trained YOLO26n model [accuracy](https://www.ultralytics.com/glossary
         metrics.box.map50  # map50
         metrics.box.map75  # map75
         metrics.box.maps  # a list containing mAP50-95 for each category
+        metrics.box.image_metrics  # per-image precision and recall dictionary
         ```
 
     === "CLI"
