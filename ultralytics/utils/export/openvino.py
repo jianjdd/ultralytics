@@ -12,7 +12,7 @@ from ultralytics.utils import LOGGER
 
 def torch2openvino(
     model: torch.nn.Module,
-    im: torch.Tensor | list[torch.Tensor] | tuple[torch.Tensor],
+    im: torch.Tensor | list[torch.Tensor] | tuple[torch.Tensor, ...],
     output_dir: Path | str | None = None,
     dynamic: bool = False,
     half: bool = False,
@@ -20,17 +20,17 @@ def torch2openvino(
     calibration_dataset: Any | None = None,
     ignored_scope: dict | None = None,
     prefix: str = "",
-):
+) -> Any:
     """Export a PyTorch model to OpenVINO format with optional INT8 quantization.
 
     Args:
         model (torch.nn.Module): The model to export (may be NMS-wrapped).
-        im (torch.Tensor | list[torch.Tensor] | tuple[torch.Tensor]): Example input tensor(s) for tracing.
+        im (torch.Tensor | list[torch.Tensor] | tuple[torch.Tensor, ...]): Example input tensor(s) for tracing.
         output_dir (Path | str | None): Directory to save the exported OpenVINO model.
         dynamic (bool): Whether to use dynamic input shapes.
         half (bool): Whether to compress to FP16.
         int8 (bool): Whether to apply INT8 quantization.
-        calibration_dataset (nn.Dataset): Dataset for nncf.Dataset (required when ``int8=True``).
+        calibration_dataset (nncf.Dataset | None): Dataset for INT8 calibration (required when ``int8=True``).
         ignored_scope (dict | None): Kwargs passed to ``nncf.IgnoredScope`` for head patterns.
         prefix (str): Prefix for log messages.
 

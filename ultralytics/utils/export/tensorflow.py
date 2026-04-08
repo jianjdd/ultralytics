@@ -61,9 +61,9 @@ def onnx2saved_model(
     onnx_file: str,
     output_dir: Path | str,
     int8: bool = False,
-    images: np.ndarray = None,
+    images: np.ndarray | None = None,
     disable_group_convolution: bool = False,
-    prefix="",
+    prefix: str = "",
 ):
     """Convert an ONNX model to TensorFlow SavedModel format using onnx2tf.
 
@@ -71,7 +71,7 @@ def onnx2saved_model(
         onnx_file (str): ONNX file path.
         output_dir (Path | str): Output directory path for the SavedModel.
         int8 (bool, optional): Enable INT8 quantization. Defaults to False.
-        images (np.ndarray, optional): Calibration images for INT8 quantization in BHWC format.
+        images (np.ndarray | None, optional): Calibration images for INT8 quantization in BHWC format.
         disable_group_convolution (bool, optional): Disable group convolution optimization. Defaults to False.
         prefix (str, optional): Logging prefix. Defaults to "".
 
@@ -82,6 +82,7 @@ def onnx2saved_model(
         - Requires onnx2tf package. Downloads calibration data if INT8 quantization is enabled.
         - Removes temporary files and renames quantized models after conversion.
     """
+    output_dir = Path(output_dir)
     # Pre-download calibration file to fix https://github.com/PINTO0309/onnx2tf/issues/545
     onnx2tf_file = Path("calibration_image_sample_data_20x128x128x3_float32.npy")
     if not onnx2tf_file.exists():

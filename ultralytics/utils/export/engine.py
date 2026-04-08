@@ -45,22 +45,22 @@ def best_onnx_opset(onnx: types.ModuleType, cuda: bool = False) -> int:
 @ThreadingLocked()
 def torch2onnx(
     model: torch.nn.Module,
-    im: torch.Tensor | tuple[torch.Tensor],
+    im: torch.Tensor | tuple[torch.Tensor, ...],
     output_file: Path | str,
     opset: int = 14,
-    input_names: list[str] = ["images"],
-    output_names: list[str] = ["output0"],
+    input_names: list[str] | None = None,
+    output_names: list[str] | None = None,
     dynamic: dict | None = None,
 ) -> str:
     """Export a PyTorch model to ONNX format.
 
     Args:
         model (torch.nn.Module): The PyTorch model to export.
-        im (torch.Tensor | tuple[torch.Tensor]): Example input tensor(s) for tracing.
+        im (torch.Tensor | tuple[torch.Tensor, ...]): Example input tensor(s) for tracing.
         output_file (Path | str): Path to save the exported ONNX file.
         opset (int): ONNX opset version to use for export.
-        input_names (list[str]): List of input tensor names.
-        output_names (list[str]): List of output tensor names.
+        input_names (list[str] | None): List of input tensor names. Defaults to ``["images"]``.
+        output_names (list[str] | None): List of output tensor names. Defaults to ``["output0"]``.
         dynamic (dict | None): Dictionary specifying dynamic axes for inputs and outputs.
 
     Returns:
@@ -69,6 +69,10 @@ def torch2onnx(
     Notes:
         Setting `do_constant_folding=True` may cause issues with DNN inference for torch>=1.12.
     """
+    if input_names is None:
+        input_names = ["images"]
+    if output_names is None:
+        output_names = ["output0"]
     kwargs = {"dynamo": False} if TORCH_2_4 else {}
     torch.onnx.export(
         model,

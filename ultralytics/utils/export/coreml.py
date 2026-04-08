@@ -46,7 +46,7 @@ class IOSDetectModel(nn.Module):
 
 def pipeline_coreml(
     model: Any,
-    output_shape: tuple,
+    output_shape: tuple[int, ...],
     metadata: dict,
     mlmodel: bool = False,
     iou: float = 0.45,
@@ -59,7 +59,7 @@ def pipeline_coreml(
 
     Args:
         model: CoreML model.
-        output_shape (tuple): Output shape tuple from the exporter.
+        output_shape (tuple[int, ...]): Output shape tuple from the exporter.
         metadata (dict): Model metadata.
         mlmodel (bool): Whether the model is an MLModel (vs MLProgram).
         iou (float): IoU threshold for NMS.
@@ -174,7 +174,7 @@ def torch2coreml(
     int8: bool = False,
     metadata: dict | None = None,
     prefix: str = "",
-):
+) -> Any:
     """Export a PyTorch model to CoreML ``.mlpackage`` or ``.mlmodel`` format.
 
     Args:
