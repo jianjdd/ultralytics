@@ -127,14 +127,16 @@ class ImageEncoderTrainer(ClassificationTrainer):
         if overrides is None:
             overrides = {}
         overrides.setdefault("close_mosaic", 0)  # no mosaic in distillation, avoids .reset() call
-        # Support both 'teacher_name' (single) and 'teacher_names' (multi, '+' separated)
+        # Pop non-YOLO keys before super().__init__ (check_dict_alignment rejects unknown keys)
         raw = overrides.pop("teacher_names", overrides.pop("teacher_name", "eupe:vitb16"))
-        self.teacher_names = raw.split("+") if isinstance(raw, str) else raw
-        self._safe_keys = [safe_key(n) for n in self.teacher_names]
-        # Augment at the largest teacher resolution so no teacher receives upscaled input
-        self._teacher_imgsz = max(TEACHER_REGISTRY[n]["imgsz"] for n in self.teacher_names)
         self.teachers = {}
         super().__init__(cfg, overrides, _callbacks)
+        # Canonical source on args -- DDP serializes vars(trainer.args) to subprocess temp file,
+        # subprocess __init__ pops it from overrides before its own super().__init__
+        self.args.teacher_names = raw if isinstance(raw, str) else "+".join(raw)
+        self.teacher_names = self.args.teacher_names.split("+")
+        self._safe_keys = [safe_key(n) for n in self.teacher_names]
+        self._teacher_imgsz = max(TEACHER_REGISTRY[n]["imgsz"] for n in self.teacher_names)
 
     def _setup_train(self):
         """Set bf16 autocast after AMP check to avoid poisoning the yolo26n detection test."""
