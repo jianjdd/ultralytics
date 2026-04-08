@@ -138,11 +138,11 @@ This approach is particularly useful when the target domain differs significantl
 
     # Stage 1: freeze backbone, train head and neck
     model = YOLO("yolo26n.pt")
-    model.train(data="custom.yaml", epochs=20, freeze=10, name="stage1")
+    model.train(data="custom.yaml", epochs=20, freeze=10, name="stage1", exist_ok=True)
 
     # Stage 2: unfreeze all, fine-tune with lower lr
     model = YOLO("runs/detect/stage1/weights/best.pt")
-    model.train(data="custom.yaml", epochs=30, lr0=0.001, name="stage2")
+    model.train(data="custom.yaml", epochs=30, lr0=0.001, name="stage2", exist_ok=True)
     ```
 
 ## Common Pitfalls
