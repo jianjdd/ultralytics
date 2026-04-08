@@ -188,6 +188,7 @@ class DetectionValidator(BaseValidator):
                     "target_img": np.unique(cls),
                     "conf": np.zeros(0) if no_pred else predn["conf"].cpu().numpy(),
                     "pred_cls": np.zeros(0) if no_pred else predn["cls"].cpu().numpy(),
+                    "im_file": pbatch["im_file"],  # save as key for image metrics 
                 }
             )
             # Evaluate
@@ -289,7 +290,7 @@ class DetectionValidator(BaseValidator):
             return {"tp": np.zeros((preds["cls"].shape[0], self.niou), dtype=bool)}
         iou = box_iou(batch["bboxes"], preds["bboxes"])
         tp = self.match_predictions(preds["cls"], batch["cls"], iou).cpu().numpy()
-        self.image_metrics.append(self.pr_per_image(tp, batch, preds, conf_thres=0.25))
+        # self.image_metrics.append(self.pr_per_image(tp, batch, preds, conf_thres=0.25))
         return {"tp": tp}
 
     def pr_per_image(self, tp: np.ndarray, batch: dict, pred: dict, conf_thres: float = 0.25) -> None:
