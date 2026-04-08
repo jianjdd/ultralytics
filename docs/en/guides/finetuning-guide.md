@@ -30,9 +30,9 @@ A pretrained model has already learned general visual features - edge detection,
 
 When a pretrained model is fine-tuned on a dataset with a different number of classes (for example, COCO's 80 classes to 5 custom classes), Ultralytics performs shape-aware weight transfer:
 
-1. **Backbone (layers 0-9) and neck (layers 10-22) transfer fully** - these layers extract general visual features and their shapes are independent of the number of classes. About 86% of model weights transfer at this stage.
-2. **Detection head (layer 23) is reinitialized** - the classification output layers have shapes tied to the class count (80 vs 5), so they cannot transfer. These layers (about 14% of model weights) are randomly initialized and trained from scratch.
-3. **Box regression layers transfer** - the bounding box prediction layers in the head have fixed shapes regardless of class count, so they transfer even when the number of classes changes.
+1. **Backbone and neck transfer fully** - these layers extract general visual features and their shapes are independent of the number of classes.
+2. **Detection head is partially reinitialized** - the classification output layers have shapes tied to the class count (80 vs 5), so they cannot transfer and are randomly initialized. Box regression layers in the head have fixed shapes regardless of class count, so they transfer normally.
+3. **Overall, about 97% of weights transfer** when changing class count (for example, 80 to 5 classes). Only the classification-specific layers (about 3%) are reinitialized.
 
 For datasets with the same number of classes as the pretrained model (for example, fine-tuning COCO-pretrained weights on another 80-class dataset), 100% of weights transfer including the detection head.
 
