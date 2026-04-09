@@ -62,6 +62,7 @@ from ultralytics.utils.torch_utils import (
     unset_deterministic,
     unwrap_model,
 )
+from ultralytics.nn.distill_model import DistillationModel
 
 
 class BaseTrainer:
@@ -310,6 +311,8 @@ class BaseTrainer:
         )
         always_freeze_names = [".dfl"]  # always freeze these layers
         freeze_layer_names = [f"model.{x}." for x in freeze_list] + always_freeze_names
+        if isinstance(unwrap_model(self.model), DistillationModel):
+            freeze_layer_names.append("teacher_model.")
         self.freeze_layer_names = freeze_layer_names
         for k, v in self.model.named_parameters():
             # v.register_hook(lambda x: torch.nan_to_num(x))  # NaN to 0 (commented for erratic training results)
@@ -335,11 +338,25 @@ class BaseTrainer:
         self.scaler = (
             torch.amp.GradScaler("cuda", enabled=self.amp) if TORCH_2_4 else torch.cuda.amp.GradScaler(enabled=self.amp)
         )
+        if self.args.distill_model is not None and not isinstance(unwrap_model(self.model), DistillationModel):
+            teacher = self.args.distill_model
+            if self.resume and ckpt is not None:
+                ema_model = ckpt.get("ema")
+                if ema_model is not None and hasattr(ema_model, "teacher_model"):
+                    teacher = ema_model.teacher_model.float()
+            self.model = DistillationModel(
+                student_model=self.model,
+                teacher_model=teacher,
+                feats_idx=self.args.distill_layer,
+            ).to(self.device)
+            if "teacher_model." not in self.freeze_layer_names:
+                self.freeze_layer_names += ["teacher_model."]
         if self.world_size > 1:
             self.model = nn.parallel.DistributedDataParallel(self.model, device_ids=[RANK], find_unused_parameters=True)
 
         # Check imgsz
-        gs = max(int(self.model.stride.max() if hasattr(self.model, "stride") else 32), 32)  # grid size (max stride)
+        model_for_stride = unwrap_model(self.model)
+        gs = max(int(model_for_stride.stride.max() if hasattr(model_for_stride, "stride") else 32), 32)  # max stride
         self.args.imgsz = check_imgsz(self.args.imgsz, stride=gs, floor=gs, max_dim=1)
         self.stride = gs  # for multiscale training
 
@@ -349,6 +366,8 @@ class BaseTrainer:
 
         self._build_train_pipeline()
         self.validator = self.get_validator()
+        if self.args.distill_model is not None and "dis_loss" not in self.loss_names:
+            self.loss_names += ("dis_loss",)
         self.ema = ModelEMA(self.model)
         if RANK in {-1, 0}:
             metric_keys = self.validator.metrics.keys + self.label_loss_items(prefix="val")
@@ -620,6 +639,12 @@ class BaseTrainer:
     def _model_train(self):
         """Set model in training mode."""
         self.model.train()
+        model = unwrap_model(self.model)
+        if isinstance(model, DistillationModel):
+            model.teacher_model.eval()
+            for p in model.teacher_model.parameters():
+                if p.requires_grad:
+                    p.requires_grad = False
         # Freeze BN stat
         for n, m in self.model.named_modules():
             if any(filter(lambda f: f in n, self.freeze_layer_names)) and isinstance(m, nn.BatchNorm2d):
@@ -789,6 +814,7 @@ class BaseTrainer:
     def set_model_attributes(self):
         """Set or update model parameters before training."""
         self.model.names = self.data["names"]
+        self.model.args = self.args
 
     def build_targets(self, preds, targets):
         """Build target tensors for training YOLO model."""
