@@ -161,11 +161,10 @@ This approach is particularly useful when the target domain differs significantl
 
 ### Performance degrades on original classes after fine-tuning
 
-This is known as catastrophic forgetting - the model loses previously learned knowledge when fine-tuned exclusively on new data. To mitigate this:
+This is known as catastrophic forgetting - the model loses previously learned knowledge when fine-tuned exclusively on new data. Forgetting is mostly unavoidable without including original dataset images alongside new data. To mitigate this:
 
-- **Merge datasets**: include examples of the original classes alongside the new classes during fine-tuning.
-- **Freeze more layers**: use `freeze=10` or higher to preserve backbone features.
-- **Lower learning rate**: a smaller learning rate reduces how much the model shifts away from the pretrained weights.
+- **Merge datasets**: include examples of the original classes alongside the new classes during fine-tuning. This is the only reliable way to prevent forgetting.
+- **Freeze backbone and neck**: freezing both the backbone and neck so only the detection head trains helps for short fine-tuning runs with a very low learning rate.
 - **Train for fewer epochs**: the longer the model trains on new data exclusively, the more forgetting increases.
 
 ## FAQ
