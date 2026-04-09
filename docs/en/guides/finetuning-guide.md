@@ -57,16 +57,7 @@ For datasets with the same number of classes as the pretrained model (for exampl
 
 ### Choosing a Model Size
 
-Larger models have more capacity but also more parameters to update, which increases the risk of overfitting on small datasets. As a general rule, match the model size to the dataset size:
-
-| Dataset Size        | Recommended Model                                               | Params        |
-| ------------------- | --------------------------------------------------------------- | ------------- |
-| < 500 images        | [YOLO26n](../models/yolo26.md)                                  | 2.4M          |
-| 500-5,000 images    | [YOLO26s](../models/yolo26.md)                                  | 9.5M          |
-| 5,000-20,000 images | [YOLO26m](../models/yolo26.md)                                  | 20.4M         |
-| 20,000+ images      | [YOLO26l](../models/yolo26.md) / [YOLO26x](../models/yolo26.md) | 24.8M / 55.7M |
-
-These are starting points - the optimal model size depends on the complexity of the task, the number of classes, and the hardware available for deployment. See the full [YOLO26 model page](../models/yolo26.md) for performance benchmarks.
+Larger models have more capacity but also more parameters to update, which can increase the risk of overfitting when training data is limited. Starting with a smaller model (YOLO26n or YOLO26s) and scaling up only if validation metrics plateau is a practical approach. The optimal model size depends on the complexity of the task, the number of classes, the diversity of the dataset, and the hardware available for deployment. See the full [YOLO26 model page](../models/yolo26.md) for available sizes and performance benchmarks.
 
 ## Optimizer and Learning Rate Selection
 
