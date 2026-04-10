@@ -385,7 +385,7 @@ class Tuner:
             cleanup (bool): Whether to delete iteration weights to reduce storage space during tuning.
         """
         t0 = time.time()
-        best_save_dir, best_metrics = None, None
+        best_save_dir, best_metrics = [], None
         (self.tune_dir / "weights").mkdir(parents=True, exist_ok=True)
 
         # Sync MongoDB to CSV at startup for proper resume logic
