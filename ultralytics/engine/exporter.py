@@ -1030,6 +1030,7 @@ class Exporter:
             output_dir=output_dir,
             calibration_dataset=self.get_int8_calibration_dataloader(prefix),
             transform_fn=self._transform_fn,
+            model_name=self.file.stem,
             metadata=self.metadata,
             prefix=prefix,
         )

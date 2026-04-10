@@ -19,6 +19,7 @@ def torch2axelera(
     output_dir: Path | str,
     calibration_dataset: torch.utils.data.DataLoader,
     transform_fn: Callable[[Any], np.ndarray],
+    model_name: str = "model",
     metadata: dict | None = None,
     prefix: str = "",
 ) -> str:
@@ -29,6 +30,7 @@ def torch2axelera(
         output_dir (Path | str): Directory to save the exported Axelera model.
         calibration_dataset (torch.utils.data.DataLoader): Calibration dataloader for quantization.
         transform_fn (Callable[[Any], np.ndarray]): Calibration preprocessing transform function.
+        model_name (str, optional): Name for the compiled model. Defaults to "model".
         metadata (dict | None, optional): Optional metadata to save as YAML. Defaults to None.
         prefix (str, optional): Prefix for log messages. Defaults to "".
 
@@ -53,7 +55,6 @@ def torch2axelera(
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    model_name = output_dir.stem.removesuffix("_axelera_model")
 
     axelera_model_metadata = extract_ultralytics_metadata(model)
     config = CompilerConfig(
