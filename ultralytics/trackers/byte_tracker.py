@@ -338,10 +338,9 @@ class BYTETracker:
         # Step 3: Second association, with low score detection boxes association the untrack to the low score detections
         detections_second = self.init_track(results_second, feats_second)
         r_tracked_stracks = [strack_pool[i] for i in u_track if strack_pool[i].state == TrackState.Tracked]
-        dists = matching.iou_distance(r_tracked_stracks, detections_second)
-        if self.args.fuse_score:
-            dists = matching.fuse_score(dists, detections_second)
-        matches, u_track, _u_detection_second = matching.linear_assignment(dists, thresh=0.5)
+        dists = self.get_dists(r_tracked_stracks, detections_second)
+        second_thresh = self.args.match_thresh if self.args.get("distance_metric", "iou") == "l2" else 0.5
+        matches, u_track, _u_detection_second = matching.linear_assignment(dists, thresh=second_thresh)
         for itracked, idet in matches:
             track = r_tracked_stracks[itracked]
             det = detections_second[idet]
@@ -407,7 +406,9 @@ class BYTETracker:
         return [STrack(xywh, s, c) for (xywh, s, c) in zip(bboxes, results.conf, results.cls)]
 
     def get_dists(self, tracks: list[STrack], detections: list[STrack]) -> np.ndarray:
-        """Calculate the distance between tracks and detections using IoU and optionally fuse scores."""
+        """Calculate the distance between tracks and detections using IoU or L2 and optionally fuse scores."""
+        if self.args.get("distance_metric", "iou") == "l2":
+            return matching.l2_distance(tracks, detections)
         dists = matching.iou_distance(tracks, detections)
         if self.args.fuse_score:
             dists = matching.fuse_score(dists, detections)
