@@ -447,7 +447,7 @@ Efficient annotation with keyboard shortcuts:
     | `Cmd/Ctrl++` or `Cmd/Ctrl+=` | Zoom in                  |
     | `Cmd/Ctrl+-`           | Zoom out                     |
     | `Cmd/Ctrl+0`           | Reset to fit                 |
-    | `Space+Drag`            | Pan canvas                   |
+    | `Space+Drag`           | Pan canvas when zoomed      |
     | `Shift+Click`          | Multi-select annotations   |
     | `Cmd/Ctrl+A`           | Select all annotations     |
 
