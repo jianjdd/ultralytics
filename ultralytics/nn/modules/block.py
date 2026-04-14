@@ -30,8 +30,10 @@ __all__ = (
     "Attention",
     "BNContrastiveHead",
     "Bottleneck",
+    "Bottleneck_DCNv2",
     "BottleneckCSP",
     "C2f",
+    "C2f_DCNv2",
     "C2fAttn",
     "C2fCIB",
     "C2fPSA",
@@ -307,6 +309,103 @@ class C2f(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through C2f layer."""
+        y = list(self.cv1(x).chunk(2, 1))
+        y.extend(m(y[-1]) for m in self.m)
+        return self.cv2(torch.cat(y, 1))
+
+    def forward_split(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass using split() instead of chunk()."""
+        y = self.cv1(x).split((self.c, self.c), 1)
+        y = [y[0], y[1]]
+        y.extend(m(y[-1]) for m in self.m)
+        return self.cv2(torch.cat(y, 1))
+
+
+class Bottleneck_DCNv2(nn.Module):
+    """Bottleneck with Deformable Convolution v2.
+    
+    Replaces the standard 3x3 convolution with a Deformable Convolution 
+    (provided by torchvision) to enhance feature extraction for objects 
+    with variable shapes or challenging poses.
+    """
+
+    def __init__(
+        self, c1: int, c2: int, shortcut: bool = True, g: int = 1, k: tuple[int, int] = (3, 3), e: float = 0.5
+    ):
+        """Initialize a DCNv2 bottleneck module.
+
+        Args:
+            c1 (int): Input channels.
+            c2 (int): Output channels.
+            shortcut (bool): Whether to use shortcut connection.
+            g (int): Groups for convolutions.
+            k (tuple): Kernel sizes for convolutions.
+            e (float): Expansion ratio.
+        """
+        super().__init__()
+        import torchvision
+        c_ = int(c2 * e)  # hidden channels
+        self.cv1 = Conv(c1, c_, k[0], 1)
+        
+        # Replace the second convolution (3x3) with DeformConv2d
+        # Standard convolutions have weights shape (out_channels, in_channels/groups, kH, kW)
+        padding = k[1] // 2
+        self.offset_conv = nn.Conv2d(c_, 2 * k[1] * k[1], kernel_size=k[1], stride=1, padding=padding, groups=g)
+        self.mask_conv = nn.Conv2d(c_, k[1] * k[1], kernel_size=k[1], stride=1, padding=padding, groups=g)
+        self.dcnv2 = torchvision.ops.DeformConv2d(
+            in_channels=c_,
+            out_channels=c2,
+            kernel_size=k[1],
+            stride=1,
+            padding=padding,
+            groups=g,
+            bias=False
+        )
+        self.bn2 = nn.BatchNorm2d(c2)
+        self.act2 = nn.SiLU()
+        
+        self.add = shortcut and c1 == c2
+
+        # Initialize offset to 0 so it starts as a normal convolution
+        nn.init.constant_(self.offset_conv.weight, 0)
+        nn.init.constant_(self.offset_conv.bias, 0)
+        nn.init.constant_(self.mask_conv.weight, 0)
+        nn.init.constant_(self.mask_conv.bias, 0)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply DCNv2 bottleneck with optional shortcut connection."""
+        out = self.cv1(x)
+        # Compute offset and mask
+        offset = self.offset_conv(out)
+        mask = torch.sigmoid(self.mask_conv(out))  # Mask is bounded between 0 and 1
+        # Apply deformable convolution
+        out = self.dcnv2(out, offset, mask)
+        out = self.act2(self.bn2(out))
+        return x + out if self.add else out
+
+
+class C2f_DCNv2(nn.Module):
+    """CSP Bottleneck with 2 convolutions and DCNv2 bottlenecks."""
+
+    def __init__(self, c1: int, c2: int, n: int = 1, shortcut: bool = False, g: int = 1, e: float = 0.5):
+        """Initialize a CSP bottleneck with 2 convolutions and DCNv2 internally.
+
+        Args:
+            c1 (int): Input channels.
+            c2 (int): Output channels.
+            n (int): Number of Bottleneck blocks.
+            shortcut (bool): Whether to use shortcut connections.
+            g (int): Groups for convolutions.
+            e (float): Expansion ratio.
+        """
+        super().__init__()
+        self.c = int(c2 * e)  # hidden channels
+        self.cv1 = Conv(c1, 2 * self.c, 1, 1)
+        self.cv2 = Conv((2 + n) * self.c, c2, 1)  # optional act=FReLU(c2)
+        self.m = nn.ModuleList(Bottleneck_DCNv2(self.c, self.c, shortcut, g, k=(3, 3), e=1.0) for _ in range(n))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through C2f_DCNv2 layer."""
         y = list(self.cv1(x).chunk(2, 1))
         y.extend(m(y[-1]) for m in self.m)
         return self.cv2(torch.cat(y, 1))

@@ -13,6 +13,7 @@ __all__ = (
     "CBAM",
     "ChannelAttention",
     "Concat",
+    "BiFPN_Concat",
     "Conv",
     "Conv2",
     "ConvTranspose",
@@ -640,6 +641,52 @@ class Concat(nn.Module):
             (torch.Tensor): Concatenated tensor.
         """
         return torch.cat(x, self.d)
+
+
+class BiFPN_Concat(nn.Module):
+    """BiFPN weighted sum and concatenation for multi-scale feature fusion.
+    
+    Instead of simply concatenating features as in standard PANet, BiFPN applies 
+    learnable weights to each input before summation, preventing features with less 
+    information (like high-level low-res maps) from overwhelming those with 
+    detailed low-level information (critical for small objects).
+    """
+
+    def __init__(self, dimension=1):
+        """Initialize BiFPN_Concat module with small eps and learnable weights.
+        
+        Note: The actual weights (w) cannot be initialized here without knowing the 
+        number of inputs. They are dynamically initialized on the first forward pass.
+        
+        Args:
+            dimension (int): Dimension along which to concatenate tensors.
+        """
+        super().__init__()
+        self.d = dimension
+        self.w = nn.Parameter(torch.ones(2, dtype=torch.float32), requires_grad=True)
+        self.epsilon = 1e-4
+
+    def forward(self, x: list[torch.Tensor]):
+        """Apply learnable weights to inputs and concatenate.
+        
+        Args:
+            x (list[torch.Tensor]): List of input tensors.
+
+        Returns:
+            (torch.Tensor): Weighted concatenated tensor.
+        """
+        if self.w.shape[0] != len(x):
+            # Dynamically initialize weights on first pass based on number of inputs
+            self.w = nn.Parameter(torch.ones(len(x), dtype=torch.float32, device=x[0].device), requires_grad=True)
+            
+        # Ensure weights are positive
+        weight = torch.relu(self.w)
+        # Normalize weights
+        weight = weight / (torch.sum(weight, dim=0) + self.epsilon)
+        
+        # Apply weights to inputs
+        out = [x[i] * weight[i] for i in range(len(x))]
+        return torch.cat(out, self.d)
 
 
 class Index(nn.Module):

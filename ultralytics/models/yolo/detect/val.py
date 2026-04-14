@@ -122,6 +122,7 @@ class DetectionValidator(BaseValidator):
             max_det=self.args.max_det,
             end2end=self.end2end,
             rotated=self.args.task == "obb",
+            soft_nms=self.args.soft_nms,
         )
         return [{"bboxes": x[:, :4], "conf": x[:, 4], "cls": x[:, 5], "extra": x[:, 6:]} for x in outputs]
 

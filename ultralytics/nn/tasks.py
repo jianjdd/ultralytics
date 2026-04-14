@@ -29,8 +29,10 @@ from ultralytics.nn.modules import (
     AConv,
     ADown,
     Bottleneck,
+    Bottleneck_DCNv2,
     BottleneckCSP,
     C2f,
+    C2f_DCNv2,
     C2fAttn,
     C2fCIB,
     C2fPSA,
@@ -41,6 +43,7 @@ from ultralytics.nn.modules import (
     CBLinear,
     Classify,
     Concat,
+    BiFPN_Concat,
     Conv,
     Conv2,
     ConvTranspose,
@@ -1579,7 +1582,6 @@ def parse_model(d, ch, verbose=True):
             Conv,
             ConvTranspose,
             GhostConv,
-            Bottleneck,
             GhostBottleneck,
             SPP,
             SPPF,
@@ -1608,6 +1610,7 @@ def parse_model(d, ch, verbose=True):
             PSA,
             SCDown,
             C2fCIB,
+            C2f_DCNv2,
             A2C2f,
         }
     )
@@ -1626,6 +1629,7 @@ def parse_model(d, ch, verbose=True):
             RepC3,
             C2fPSA,
             C2fCIB,
+            C2f_DCNv2,
             C2PSA,
             A2C2f,
         }
@@ -1679,7 +1683,7 @@ def parse_model(d, ch, verbose=True):
             args = [ch[f]]
         elif m is CoordAtt:
             args = [ch[f], *args]
-        elif m is Concat:
+        elif m is Concat or m is BiFPN_Concat:
             c2 = sum(ch[x] for x in f)
         elif m in frozenset(
             {

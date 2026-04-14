@@ -26,6 +26,9 @@ def non_max_suppression(
     rotated: bool = False,
     end2end: bool = False,
     return_idxs: bool = False,
+    soft_nms: bool = False,
+    soft_nms_sigma: float = 0.5,
+    soft_nms_method: str = "gaussian",  # "gaussian" or "linear"
 ):
     """Perform non-maximum suppression (NMS) on prediction results.
 
@@ -78,7 +81,7 @@ def non_max_suppression(
 
     # Settings
     # min_wh = 2  # (pixels) minimum box width and height
-    time_limit = 2.0 + max_time_img * bs  # seconds to quit after
+    time_limit = 100.0 + max_time_img * bs if soft_nms else 2.0 + max_time_img * bs  # 放宽 Soft-NMS 的时间限制
     multi_label &= nc > 1  # multiple labels per box (adds 0.5ms/img)
 
     prediction = prediction.transpose(-1, -2)  # shape(1,84,6300) to shape(1,6300,84)
@@ -145,6 +148,15 @@ def non_max_suppression(
         if rotated:
             boxes = torch.cat((x[:, :2] + c, x[:, 2:4], x[:, -1:]), dim=-1)  # xywhr
             i = TorchNMS.fast_nms(boxes, scores, iou_thres, iou_func=batch_probiou)
+        elif soft_nms:
+            # Soft-NMS: 衰减重叠框置信度而非直接删除，适合密集遮挡场景
+            if xi == 0:  # 仅每个批次打印一次，避免刷屏
+                print("\n[DEBUG] 🚀 Soft-NMS is RUNNING!")
+            boxes = x[:, :4] + c  # boxes (offset by class)
+            i, new_scores = TorchNMS.soft_nms(
+                boxes, scores, iou_thres, sigma=soft_nms_sigma, method=soft_nms_method, conf_thres=conf_thres
+            )
+            x[i, 4] = new_scores  # 更新衰减后的置信度
         else:
             boxes = x[:, :4] + c  # boxes (offset by class)
             # Speed strategy: torchvision for val or already loaded (faster), TorchNMS for predict (lower latency)
@@ -295,6 +307,91 @@ class TorchNMS:
             order = rest[iou <= iou_threshold]
 
         return keep[:keep_idx]
+
+    @staticmethod
+    def soft_nms(
+        boxes: torch.Tensor,
+        scores: torch.Tensor,
+        iou_threshold: float = 0.5,
+        sigma: float = 0.5,
+        method: str = "gaussian",
+        conf_thres: float = 0.001,
+    ):
+        """Soft-NMS 实现，通过衰减重叠框的置信度来替代直接删除。
+
+        参考论文: Bodla et al. "Soft-NMS -- Improving Object Detection With One Line of Code" (ICCV 2017)
+
+        与标准 NMS 直接删除 IoU 超过阈值的框不同，Soft-NMS 会根据 IoU 值
+        对重叠框的置信度进行衰减，从而在密集目标场景下保留更多有效检测框。
+
+        Args:
+            boxes (torch.Tensor): 边界框，形状为 (N, 4)，格式 xyxy。
+            scores (torch.Tensor): 置信度分数，形状为 (N,)。
+            iou_threshold (float): IoU 阈值，用于线性衰减方法。
+            sigma (float): 高斯衰减参数，sigma 越大衰减越平缓。
+            method (str): 衰减方式，"gaussian" 或 "linear"。
+            conf_thres (float): 衰减后的最低置信度阈值，低于此值的框将被丢弃。
+
+        Returns:
+            (tuple[torch.Tensor, torch.Tensor]): 保留框的索引和对应的新置信度。
+        """
+        if boxes.numel() == 0:
+            return (
+                torch.empty((0,), dtype=torch.int64, device=boxes.device),
+                torch.empty((0,), dtype=torch.float32, device=boxes.device),
+            )
+
+        # 复制 scores 以避免修改原始张量
+        scores = scores.clone()
+        n = boxes.shape[0]
+
+        # 预提取坐标和面积
+        x1, y1, x2, y2 = boxes.unbind(1)
+        areas = (x2 - x1) * (y2 - y1)
+
+        keep = []
+        order = torch.arange(n, device=boxes.device)
+
+        while order.numel() > 0:
+            # 取当前最高得分的框
+            max_idx = scores[order].argmax()
+            i = order[max_idx]
+            keep.append(i)
+
+            if order.numel() == 1:
+                break
+
+            # 将最高得分框移到前面，然后取剩余的
+            remaining_mask = torch.ones(order.numel(), dtype=torch.bool, device=boxes.device)
+            remaining_mask[max_idx] = False
+            rest = order[remaining_mask]
+
+            # 计算 IoU
+            xx1 = torch.maximum(x1[i], x1[rest])
+            yy1 = torch.maximum(y1[i], y1[rest])
+            xx2 = torch.minimum(x2[i], x2[rest])
+            yy2 = torch.minimum(y2[i], y2[rest])
+            w = (xx2 - xx1).clamp_(min=0)
+            h = (yy2 - yy1).clamp_(min=0)
+            inter = w * h
+            iou = inter / (areas[i] + areas[rest] - inter)
+
+            # 根据衰减方式更新分数
+            if method == "linear":
+                # 线性衰减: 对 IoU >= 阈值的框，score *= (1 - IoU)
+                weight = torch.where(iou >= iou_threshold, 1.0 - iou, torch.ones_like(iou))
+            else:
+                # 高斯衰减: score *= exp(-(IoU^2) / sigma)，对所有框平滑衰减
+                weight = torch.exp(-(iou ** 2) / sigma)
+
+            scores[rest] *= weight
+
+            # 过滤低于置信度阈值的框
+            valid = scores[rest] >= conf_thres
+            order = rest[valid]
+
+        keep_indices = torch.stack(keep) if keep else torch.empty((0,), dtype=torch.int64, device=boxes.device)
+        return keep_indices, scores[keep_indices]
 
     @staticmethod
     def batched_nms(
