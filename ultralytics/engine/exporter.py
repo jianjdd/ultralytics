@@ -380,6 +380,7 @@ class Exporter:
             assert fmt != "ncnn", "optimize=True not compatible with format='ncnn', i.e. use optimize=False"
             assert self.device.type == "cpu", "optimize=True not compatible with cuda devices, i.e. use device='cpu'"
         if fmt == "rknn":
+            rknn_export_chips = RKNN_CHIPS - {"rv1126b"}
             if not self.args.name:
                 LOGGER.warning(
                     "Rockchip RKNN export requires a missing 'name' arg for processor type. "
@@ -387,8 +388,9 @@ class Exporter:
                 )
                 self.args.name = "rk3588"
             self.args.name = self.args.name.lower()
-            assert self.args.name in RKNN_CHIPS, (
-                f"Invalid processor name '{self.args.name}' for Rockchip RKNN export. Valid names are {RKNN_CHIPS}."
+            assert self.args.name in rknn_export_chips, (
+                f"Invalid processor name '{self.args.name}' for Rockchip RKNN export. "
+                f"Valid names are {rknn_export_chips}."
             )
         if self.args.nms:
             assert not isinstance(model, ClassificationModel), "'nms=True' is not valid for classification models."
