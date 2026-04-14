@@ -16,6 +16,7 @@ __all__ = (
     "Conv",
     "Conv2",
     "ConvTranspose",
+    "CoordAtt",
     "DWConv",
     "DWConvTranspose2d",
     "Focus",
@@ -667,3 +668,61 @@ class Index(nn.Module):
             (torch.Tensor): Selected tensor.
         """
         return x[self.index]
+
+
+class CoordAtt(nn.Module):
+    """Coordinate Attention 模块。
+
+    将通道注意力分解为 H 和 W 两个方向的位置编码，
+    精确捕获空间位置信息，适合小目标检测。
+
+    参考: https://arxiv.org/abs/2103.02907
+
+    Attributes:
+        pool_h (nn.AdaptiveAvgPool2d): 沿 H 方向的自适应平均池化。
+        pool_w (nn.AdaptiveAvgPool2d): 沿 W 方向的自适应平均池化。
+        conv1 (nn.Conv2d): 共享降维 1x1 卷积。
+        bn1 (nn.BatchNorm2d): 批归一化。
+        act (nn.SiLU): 激活函数。
+        conv_h (nn.Conv2d): H 方向注意力生成卷积。
+        conv_w (nn.Conv2d): W 方向注意力生成卷积。
+    """
+
+    def __init__(self, c1, reduction=32):
+        """初始化 Coordinate Attention 模块。
+
+        Args:
+            c1 (int): 输入通道数。
+            reduction (int): 降维比例（中间通道数 = c1 // reduction，最小为 8）。
+        """
+        super().__init__()
+        c_mid = max(8, c1 // reduction)
+        self.pool_h = nn.AdaptiveAvgPool2d((None, 1))
+        self.pool_w = nn.AdaptiveAvgPool2d((1, None))
+        self.conv1 = nn.Conv2d(c1, c_mid, 1, bias=False)
+        self.bn1 = nn.BatchNorm2d(c_mid)
+        self.act = nn.SiLU(inplace=True)
+        self.conv_h = nn.Conv2d(c_mid, c1, 1, bias=False)
+        self.conv_w = nn.Conv2d(c_mid, c1, 1, bias=False)
+
+    def forward(self, x):
+        """前向传播，生成 H/W 方向的注意力权重并加权输入。
+
+        Args:
+            x (torch.Tensor): 输入特征图, shape (B, C, H, W)。
+
+        Returns:
+            (torch.Tensor): 加权后的特征图, shape (B, C, H, W)。
+        """
+        B, C, H, W = x.shape
+        # 方向编码
+        x_h = self.pool_h(x)                       # (B, C, H, 1)
+        x_w = self.pool_w(x).permute(0, 1, 3, 2)   # (B, C, 1, W) → (B, C, W, 1)
+        # 联合编码
+        y = torch.cat([x_h, x_w], dim=2)           # (B, C, H+W, 1)
+        y = self.act(self.bn1(self.conv1(y)))       # (B, c_mid, H+W, 1)
+        x_h, x_w = y.split([H, W], dim=2)          # 拆分回 H 和 W
+        # 生成注意力权重
+        a_h = self.conv_h(x_h).sigmoid()            # (B, C, H, 1)
+        a_w = self.conv_w(x_w.permute(0, 1, 3, 2)).sigmoid()  # (B, C, 1, W)
+        return x * a_h * a_w
